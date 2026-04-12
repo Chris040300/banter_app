@@ -10,6 +10,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Name, email, and password are required.' }, { status: 400 });
   }
 
+  if (name.length > 64 || email.length > 254 || password.length > 128) {
+    return NextResponse.json({ error: 'Input zu lang.' }, { status: 400 });
+  }
+  if (password.length < 8) {
+    return NextResponse.json({ error: 'Passwort muss mindestens 8 Zeichen lang sein.' }, { status: 400 });
+  }
+
   const db = getDb();
   if (getUserByEmail(db, email)) {
     return NextResponse.json({ error: 'Email already in use.' }, { status: 409 });

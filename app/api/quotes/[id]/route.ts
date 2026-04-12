@@ -25,6 +25,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const body = await req.json().catch(() => ({}));
   if (!body.text) return NextResponse.json({ error: 'Text is required.' }, { status: 400 });
 
+  if (body.text.length > 2000 || (body.subtitle && body.subtitle.length > 200)) {
+    return NextResponse.json({ error: 'Input zu lang.' }, { status: 400 });
+  }
+
   const updated = updateQuote(auth.db, id, { text: body.text, subtitle: body.subtitle ?? null });
   return NextResponse.json(updated);
 }

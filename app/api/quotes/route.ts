@@ -15,6 +15,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   if (!body.text) return NextResponse.json({ error: 'Text is required.' }, { status: 400 });
 
+  if (body.text.length > 2000 || (body.subtitle && body.subtitle.length > 200)) {
+    return NextResponse.json({ error: 'Input zu lang.' }, { status: 400 });
+  }
+
   const db = getDb();
   const quote = createQuote(db, {
     text: body.text,

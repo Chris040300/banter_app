@@ -3,6 +3,10 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { getDb, getUserByEmail } from '@/lib/db';
 
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error('NEXTAUTH_SECRET environment variable is required.');
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({

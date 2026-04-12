@@ -1,3 +1,5 @@
+'use client';
+
 import { Quote } from '@/types';
 
 interface Props {

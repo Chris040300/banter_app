@@ -15,6 +15,12 @@ jest.mock('@/lib/db', () => {
   };
 });
 
+beforeEach(() => {
+  // Clear all users before each test to prevent state pollution between tests
+  const { getDb } = jest.requireMock('@/lib/db');
+  getDb().prepare('DELETE FROM users').run();
+});
+
 // bcrypt is slow in tests — mock it
 jest.mock('bcryptjs', () => ({
   hash: jest.fn().mockResolvedValue('hashed-password'),
@@ -44,8 +50,8 @@ describe('POST /api/auth/register', () => {
   });
 
   test('returns 409 when email is already taken', async () => {
-    await POST(makeRequest({ name: 'Alice', email: 'dupe@test.com', password: 'pass' }));
-    const res = await POST(makeRequest({ name: 'Alice2', email: 'dupe@test.com', password: 'pass' }));
+    await POST(makeRequest({ name: 'Alice', email: 'dupe@test.com', password: 'password1' }));
+    const res = await POST(makeRequest({ name: 'Alice2', email: 'dupe@test.com', password: 'password1' }));
     expect(res.status).toBe(409);
   });
 });
