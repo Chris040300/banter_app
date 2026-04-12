@@ -128,6 +128,172 @@ pm2 delete banter   # App aus pm2 entfernen
 
 ---
 
+## Online hosten mit Cloudflare Tunnel (öffentlich erreichbar)
+
+Mit einem **Cloudflare Tunnel** wird dein Raspberry Pi von überall auf der Welt erreichbar — ohne Port-Forwarding, ohne feste IP, mit kostenlosem SSL.
+
+**Was du brauchst:**
+- Einen Cloudflare-Account (kostenlos)
+- Eine Domain (z. B. bei Cloudflare Registrar ~8€/Jahr für `.de`)
+- Den laufenden Banter-Pi aus dem Deployment-Abschnitt oben
+
+---
+
+### Teil 1: Domain bei Cloudflare kaufen
+
+1. Gehe auf [cloudflare.com](https://cloudflare.com) → Account erstellen (kostenlos)
+2. Im Dashboard links auf **Domain Registration → Register Domains** klicken
+3. Gewünschten Domainnamen suchen (z. B. `meinbanter.de`) und kaufen (~8€/Jahr)
+4. **WHOIS-Schutz** ist bei Cloudflare automatisch aktiviert — deine Adresse bleibt privat
+5. **Automatische Verlängerung** aktivieren (Standard) — sonst läuft die Domain ab
+
+> Die Domain ist sofort aktiv. DNS wird automatisch auf Cloudflare eingestellt.
+
+---
+
+### Teil 2: Cloudflare Tunnel einrichten (auf dem Pi)
+
+#### cloudflared installieren
+
+```bash
+# ARM64 (Raspberry Pi 4 / 5):
+curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -o cloudflared
+
+# ARM32 (Raspberry Pi 3 oder älter):
+curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm -o cloudflared
+
+sudo mv cloudflared /usr/local/bin/
+sudo chmod +x /usr/local/bin/cloudflared
+cloudflared --version  # prüfen ob Installation geklappt hat
+```
+
+#### Mit Cloudflare verbinden
+
+```bash
+cloudflared tunnel login
+```
+
+Ein Link wird angezeigt → im Browser öffnen → mit deinem Cloudflare-Account einloggen → Deine Domain auswählen und authorisieren.
+
+#### Tunnel erstellen
+
+```bash
+cloudflared tunnel create banter
+```
+
+Das erstellt einen Tunnel und gibt eine **Tunnel-ID** aus (sieht aus wie `abc12345-...`). Diese ID brauchst du gleich.
+
+#### Subdomain dem Tunnel zuweisen
+
+```bash
+cloudflared tunnel route dns banter banter.deinedomain.de
+```
+
+Ersetze `deinedomain.de` mit deiner echten Domain. Du kannst auch `www.deinedomain.de` oder direkt `deinedomain.de` nehmen.
+
+#### Tunnel-Konfigurationsdatei erstellen
+
+```bash
+mkdir -p ~/.cloudflared
+nano ~/.cloudflared/config.yml
+```
+
+Folgenden Inhalt einfügen (Tunnel-ID und Domain anpassen):
+
+```yaml
+tunnel: <deine-tunnel-id>
+credentials-file: /home/<dein-username>/.cloudflared/<tunnel-id>.json
+
+ingress:
+  - hostname: banter.deinedomain.de
+    service: http://localhost:3000
+  - service: http_status:404
+```
+
+> Den Benutzernamen herausfinden: `whoami`
+> Die Tunnel-ID aus dem vorherigen Schritt verwenden
+
+#### Tunnel testen
+
+```bash
+cloudflared tunnel run banter
+```
+
+Jetzt sollte die App unter `https://banter.deinedomain.de` erreichbar sein (SSL wird automatisch eingerichtet). Mit `Ctrl+C` stoppen.
+
+---
+
+### Teil 3: .env.local anpassen
+
+Jetzt wo die App eine öffentliche URL hat, muss `NEXTAUTH_URL` aktualisiert werden:
+
+```bash
+nano ~/banter_app/.env.local
+```
+
+Wert ändern:
+
+```
+NEXTAUTH_URL=https://banter.deinedomain.de
+```
+
+App neu starten:
+
+```bash
+pm2 restart banter
+```
+
+---
+
+### Teil 4: Tunnel als Dienst einrichten (startet automatisch)
+
+```bash
+sudo cloudflared service install
+sudo systemctl start cloudflared
+sudo systemctl enable cloudflared  # automatisch bei jedem Neustart starten
+```
+
+Prüfen ob der Dienst läuft:
+
+```bash
+sudo systemctl status cloudflared
+```
+
+---
+
+### Ergebnis
+
+Nach diesem Setup:
+
+- ✅ App erreichbar unter `https://banter.deinedomain.de`
+- ✅ SSL-Zertifikat automatisch (kostenlos)
+- ✅ Startet automatisch wenn der Pi hochfährt
+- ✅ Kein Port-Forwarding am Router nötig
+- ✅ Funktioniert auch hinter einem Mobilfunk-Anschluss (kein öffentliche IP nötig)
+
+---
+
+### Troubleshooting
+
+**Tunnel läuft, aber App nicht erreichbar:**
+```bash
+pm2 status          # prüfen ob banter "online" ist
+pm2 logs banter     # Fehler in der App anzeigen
+```
+
+**Cloudflare Tunnel Logs anzeigen:**
+```bash
+sudo journalctl -u cloudflared -f
+```
+
+**NEXTAUTH_SECRET Fehler:**
+Sicherstellen dass `.env.local` einen `NEXTAUTH_SECRET` enthält:
+```bash
+openssl rand -base64 32  # sicheren Wert generieren
+```
+
+---
+
 ## Tests ausführen
 
 ```bash
