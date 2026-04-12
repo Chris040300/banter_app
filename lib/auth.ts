@@ -32,7 +32,7 @@ export const authOptions: NextAuthOptions = {
     jwt({ token, user }) {
       if (user) {
         token.id = Number((user as { id: string }).id);
-        token.is_admin = (user as { is_admin: boolean }).is_admin;
+        token.is_admin = (user as unknown as { is_admin: boolean }).is_admin;
       }
       return token;
     },
