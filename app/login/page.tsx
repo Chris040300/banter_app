@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
@@ -14,9 +14,9 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    const result = await signIn('credentials', { email, password, redirect: false });
+    const result = await signIn('credentials', { username, password, redirect: false });
     if (result?.error) {
-      setError('E-Mail oder Passwort falsch.');
+      setError('Benutzername oder Passwort falsch.');
     } else {
       router.push('/');
       router.refresh();
@@ -29,10 +29,10 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold text-white mb-8 text-center">Anmelden</h1>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <input
-            type="email"
-            placeholder="E-Mail"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="text"
+            placeholder="Benutzername"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             required
             className="bg-zinc-900 text-white placeholder-zinc-500 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-400"
           />

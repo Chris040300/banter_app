@@ -2,7 +2,6 @@ import Database, { Database as DatabaseType } from 'better-sqlite3';
 import path from 'path';
 import { DbUser, Quote } from '@/types';
 
-// Singleton connection for production use
 let _db: DatabaseType | null = null;
 
 export function getDb(): DatabaseType {
@@ -21,7 +20,7 @@ export function initDb(db: DatabaseType): void {
     CREATE TABLE IF NOT EXISTS users (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       name       TEXT NOT NULL,
-      email      TEXT NOT NULL UNIQUE,
+      username   TEXT NOT NULL UNIQUE,
       password   TEXT NOT NULL,
       is_admin   INTEGER NOT NULL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -51,62 +50,73 @@ export function getUserCount(db: DatabaseType): number {
 
 export function createUser(
   db: DatabaseType,
-  data: { name: string; email: string; password: string }
+  data: { name: string; username: string; password: string }
 ): DbUser {
   const isAdmin = getUserCount(db) === 0 ? 1 : 0;
   const result = db
-    .prepare('INSERT INTO users (name, email, password, is_admin) VALUES (?, ?, ?, ?)')
-    .run(data.name, data.email, data.password, isAdmin);
+    .prepare('INSERT INTO users (name, username, password, is_admin) VALUES (?, ?, ?, ?)')
+    .run(data.name, data.username, data.password, isAdmin);
   return db
     .prepare('SELECT * FROM users WHERE id = ?')
     .get(result.lastInsertRowid) as DbUser;
 }
 
-export function getUserByEmail(db: DatabaseType, email: string): DbUser | undefined {
-  return db.prepare('SELECT * FROM users WHERE email = ?').get(email) as DbUser | undefined;
+export function getUserByUsername(db: DatabaseType, username: string): DbUser | undefined {
+  return db.prepare('SELECT * FROM users WHERE username = ?').get(username) as DbUser | undefined;
 }
 
 const QUOTE_SELECT = `
   SELECT q.*, u.name as author_name
   FROM quotes q
-  JOIN users u ON u.id = q.author_id
-`;
+  JOIN users u ON
+cat > lib/auth.ts << 'EOF'
+import { NextAuthOptions } from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import bcrypt from 'bcryptjs';
+import { getDb, getUserByUsername } from '@/lib/db';
 
-export function getAllQuotes(db: DatabaseType): Quote[] {
-  return db.prepare(`${QUOTE_SELECT} ORDER BY q.created_at DESC`).all() as Quote[];
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error('NEXTAUTH_SECRET environment variable is required.');
 }
 
-export function getRandomQuote(db: DatabaseType): Quote | undefined {
-  return db.prepare(`${QUOTE_SELECT} ORDER BY RANDOM() LIMIT 1`).get() as Quote | undefined;
-}
-
-export function getQuoteById(db: DatabaseType, id: number): Quote | undefined {
-  return db.prepare(`${QUOTE_SELECT} WHERE q.id = ?`).get(id) as Quote | undefined;
-}
-
-export function createQuote(
-  db: DatabaseType,
-  data: { text: string; subtitle: string | null; author_id: number }
-): Quote {
-  const result = db
-    .prepare('INSERT INTO quotes (text, subtitle, author_id) VALUES (?, ?, ?)')
-    .run(data.text, data.subtitle, data.author_id);
-  return getQuoteById(db, result.lastInsertRowid as number)!;
-}
-
-export function updateQuote(
-  db: DatabaseType,
-  id: number,
-  data: { text: string; subtitle: string | null }
-): Quote | undefined {
-  db.prepare('UPDATE quotes SET text = ?, subtitle = ? WHERE id = ?').run(
-    data.text,
-    data.subtitle,
-    id
-  );
-  return getQuoteById(db, id);
-}
-
-export function deleteQuote(db: DatabaseType, id: number): void {
-  db.prepare('DELETE FROM quotes WHERE id = ?').run(id);
-}
+export const authOptions: NextAuthOptions = {
+  providers: [
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: {
+        username: { label: 'Benutzername', type: 'text' },
+        password: { label: 'Passwort', type: 'password' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.username || !credentials?.password) return null;
+        const db = getDb();
+        const user = getUserByUsername(db, credentials.username);
+        if (!user) return null;
+        const valid = await bcrypt.compare(credentials.password, user.password);
+        if (!valid) return null;
+        return {
+          id: String(user.id),
+          name: user.name,
+          username: user.username,
+          is_admin: Boolean(user.is_admin),
+        };
+      },
+    }),
+  ],
+  session: { strategy: 'jwt' },
+  callbacks: {
+    jwt({ token, user }) {
+      if (user) {
+        token.id = Number((user as { id: string }).id);
+        token.is_admin = (user as unknown as { is_admin: boolean }).is_admin;
+      }
+      return token;
+    },
+    session({ session, token }) {
+      session.user.id = token.id;
+      session.user.is_admin = token.is_admin;
+      return session;
+    },
+  },
+  pages: { signIn: '/login' },
+};

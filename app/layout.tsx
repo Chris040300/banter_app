@@ -7,7 +7,7 @@ import NavBar from '@/components/NavBar';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Banter',
+  title: 'Best of Dudettentalk',
   description: 'Unsere Sprüche Sammlung',
 };
 

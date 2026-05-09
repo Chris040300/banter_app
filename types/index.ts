@@ -1,9 +1,9 @@
 export interface DbUser {
   id: number;
   name: string;
-  email: string;
+  username: string;
   password: string;
-  is_admin: number; // SQLite boolean: 0 or 1
+  is_admin: number;
   created_at: string;
 }
 

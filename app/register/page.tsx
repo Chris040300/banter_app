@@ -7,7 +7,7 @@ import Link from 'next/link';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
@@ -23,14 +23,14 @@ export default function RegisterPage() {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, username, password }),
     });
     if (!res.ok) {
       const data = await res.json();
       setError(data.error || 'Registrierung fehlgeschlagen.');
       return;
     }
-    await signIn('credentials', { email, password, redirect: false });
+    await signIn('credentials', { username, password, redirect: false });
     router.push('/');
     router.refresh();
   }
@@ -42,17 +42,17 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <input
             type="text"
-            placeholder="Name"
+            placeholder="Name (Anzeigename)"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
             className="bg-zinc-900 text-white placeholder-zinc-500 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-400"
           />
           <input
-            type="email"
-            placeholder="E-Mail"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="text"
+            placeholder="Benutzername"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             required
             className="bg-zinc-900 text-white placeholder-zinc-500 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-400"
           />

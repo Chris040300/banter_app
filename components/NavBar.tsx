@@ -9,7 +9,7 @@ export default function NavBar() {
   return (
     <nav className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
       <Link href="/" className="font-bold text-white text-lg tracking-tight">
-        Banter
+        Best of Dudettentalk
       </Link>
       <div className="flex items-center gap-6 text-sm text-zinc-400">
         <Link href="/quotes" className="hover:text-white transition-colors">
